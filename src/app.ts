@@ -12,6 +12,7 @@ import {
   CLIENT_KEY_PATH,
   clientKeyRoutes,
 } from './modules/api-keys/api-keys.routes';
+import { LINKS_PATH, linksRoutes, redirectRoutes } from './modules/links/links.routes';
 import { TIERS_PATH, tiersRoutes } from './modules/tiers/tiers.routes';
 
 export function createApp(container: Container = buildContainer()): Express {
@@ -32,11 +33,16 @@ export function createApp(container: Container = buildContainer()): Express {
 
   // Client (API key, rate limited)
   app.use(CLIENT_KEY_PATH, clientKeyRoutes(c.apiKeys, clientChain, registry));
+  app.use(LINKS_PATH, linksRoutes(c.links, clientChain, registry));
+
+  // Public redirect: registered here so it appears in the docs, mounted last (catch-all path).
+  const redirects = redirectRoutes(c.links, registry);
 
   // Built after all routes have registered.
   const openApiDocument = buildOpenApiDocument(registry);
   app.get('/openapi.json', (_req, res) => res.json(openApiDocument));
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+  app.use(redirects);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

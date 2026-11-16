@@ -7,6 +7,10 @@ import { getRedis } from './common/redis';
 import { ApiKeysController } from './modules/api-keys/api-keys.controller';
 import { ApiKeyRepository } from './modules/api-keys/api-keys.repository';
 import { ApiKeysService } from './modules/api-keys/api-keys.service';
+import { LinkCache } from './modules/links/link.cache';
+import { LinksController } from './modules/links/links.controller';
+import { LinkRepository } from './modules/links/links.repository';
+import { LinksService } from './modules/links/links.service';
 import { TiersController } from './modules/tiers/tiers.controller';
 import { TierRepository } from './modules/tiers/tiers.repository';
 import { TiersService } from './modules/tiers/tiers.service';
@@ -22,10 +26,13 @@ export function buildContainer() {
   const repos = {
     tiers: new TierRepository(),
     apiKeys: new ApiKeyRepository(),
+    links: new LinkRepository(),
   };
 
   const tiersService = new TiersService(db, repos.tiers);
   const apiKeysService = new ApiKeysService(db, repos.apiKeys, repos.tiers);
+  const linkCache = new LinkCache(redis, config.REDIRECT_CACHE_TTL_SECONDS, logger);
+  const linksService = new LinksService(db, repos.links, linkCache, config.PUBLIC_BASE_URL);
 
   // Runs in this order on every client (/v1, non-admin) request.
   const clientChain: RequestHandler[] = [
@@ -39,6 +46,7 @@ export function buildContainer() {
     controllers: {
       tiers: new TiersController(tiersService),
       apiKeys: new ApiKeysController(apiKeysService),
+      links: new LinksController(linksService),
     },
   };
 }

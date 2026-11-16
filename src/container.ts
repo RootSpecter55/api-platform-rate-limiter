@@ -14,6 +14,10 @@ import { LinksService } from './modules/links/links.service';
 import { TiersController } from './modules/tiers/tiers.controller';
 import { TierRepository } from './modules/tiers/tiers.repository';
 import { TiersService } from './modules/tiers/tiers.service';
+import { UsageController } from './modules/usage/usage.controller';
+import { createUsageRecorder } from './modules/usage/usage.middleware';
+import { UsageRepository } from './modules/usage/usage.repository';
+import { UsageService } from './modules/usage/usage.service';
 import { createRateLimit } from './rate-limiter/rate-limit.middleware';
 import { TokenBucket } from './rate-limiter/token-bucket';
 
@@ -27,16 +31,19 @@ export function buildContainer() {
     tiers: new TierRepository(),
     apiKeys: new ApiKeyRepository(),
     links: new LinkRepository(),
+    usage: new UsageRepository(),
   };
 
   const tiersService = new TiersService(db, repos.tiers);
   const apiKeysService = new ApiKeysService(db, repos.apiKeys, repos.tiers);
   const linkCache = new LinkCache(redis, config.REDIRECT_CACHE_TTL_SECONDS, logger);
   const linksService = new LinksService(db, repos.links, linkCache, config.PUBLIC_BASE_URL);
+  const usageService = new UsageService(db, repos.usage, repos.apiKeys);
 
   // Runs in this order on every client (/v1, non-admin) request.
   const clientChain: RequestHandler[] = [
     createClientAuth(apiKeysService.resolveClient),
+    createUsageRecorder(usageService, logger),
     createRateLimit(new TokenBucket(redis), logger),
   ];
 
@@ -47,6 +54,7 @@ export function buildContainer() {
       tiers: new TiersController(tiersService),
       apiKeys: new ApiKeysController(apiKeysService),
       links: new LinksController(linksService),
+      usage: new UsageController(usageService),
     },
   };
 }

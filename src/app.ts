@@ -13,6 +13,12 @@ import {
   clientKeyRoutes,
 } from './modules/api-keys/api-keys.routes';
 import { LINKS_PATH, linksRoutes, redirectRoutes } from './modules/links/links.routes';
+import {
+  ADMIN_USAGE_PATH,
+  adminUsageRoutes,
+  USAGE_PATH,
+  usageRoutes,
+} from './modules/usage/usage.routes';
 import { TIERS_PATH, tiersRoutes } from './modules/tiers/tiers.routes';
 
 export function createApp(container: Container = buildContainer()): Express {
@@ -29,11 +35,13 @@ export function createApp(container: Container = buildContainer()): Express {
 
   // Admin
   app.use(TIERS_PATH, tiersRoutes(c.tiers, adminAuth, registry));
+  app.use(ADMIN_USAGE_PATH, adminUsageRoutes(c.usage, adminAuth, registry));
   app.use(API_KEYS_PATH, apiKeysAdminRoutes(c.apiKeys, adminAuth, registry));
 
   // Client (API key, rate limited)
   app.use(CLIENT_KEY_PATH, clientKeyRoutes(c.apiKeys, clientChain, registry));
   app.use(LINKS_PATH, linksRoutes(c.links, clientChain, registry));
+  app.use(USAGE_PATH, usageRoutes(c.usage, clientChain, registry));
 
   // Public redirect: registered here so it appears in the docs, mounted last (catch-all path).
   const redirects = redirectRoutes(c.links, registry);

@@ -5,17 +5,24 @@ import { errorHandler, notFoundHandler } from './common/error-handler';
 import { logger } from './common/logger';
 import { buildOpenApiDocument, createRegistry } from './common/openapi';
 import { sendData } from './common/response';
+import { buildContainer, type Container } from './container';
+import { TIERS_PATH, tiersRoutes } from './modules/tiers/tiers.routes';
 
-export function createApp(): Express {
+export function createApp(container: Container = buildContainer()): Express {
+  const { controllers: c, adminAuth } = container;
   const app = express();
   app.disable('x-powered-by');
   app.use(pinoHttp({ logger }));
   app.use(express.json({ limit: '100kb' }));
 
+  // One registry per app: every route below registers its own OpenAPI entry.
   const registry = createRegistry();
 
   app.get('/health', (_req, res) => sendData(res, { status: 'ok' }));
 
+  app.use(TIERS_PATH, tiersRoutes(c.tiers, adminAuth, registry));
+
+  // Built after all routes have registered.
   const openApiDocument = buildOpenApiDocument(registry);
   app.get('/openapi.json', (_req, res) => res.json(openApiDocument));
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));

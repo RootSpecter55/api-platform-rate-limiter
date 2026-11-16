@@ -14,11 +14,11 @@ export class ApiKeyRepository extends BaseRepository<
     return db.apiKey;
   }
 
-  findByHash(db: Db, keyHash: string) {
+  async findByHash(db: Db, keyHash: string) {
     return db.apiKey.findUnique({ where: { keyHash }, include: withTier });
   }
 
-  findByIdWithTier(db: Db, id: string) {
+  async findByIdWithTier(db: Db, id: string) {
     return db.apiKey.findUnique({ where: { id }, include: withTier });
   }
 
@@ -33,11 +33,11 @@ export class ApiKeyRepository extends BaseRepository<
     return { items, total };
   }
 
-  createWithTier(db: Db, data: Prisma.ApiKeyUncheckedCreateInput) {
+  async createWithTier(db: Db, data: Prisma.ApiKeyUncheckedCreateInput) {
     return db.apiKey.create({ data, include: withTier });
   }
 
-  updateWithTier(db: Db, id: string, data: Prisma.ApiKeyUncheckedUpdateInput) {
+  async updateWithTier(db: Db, id: string, data: Prisma.ApiKeyUncheckedUpdateInput) {
     return db.apiKey.update({ where: { id }, data, include: withTier });
   }
 }

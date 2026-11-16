@@ -6,10 +6,16 @@ import { logger } from './common/logger';
 import { buildOpenApiDocument, createRegistry } from './common/openapi';
 import { sendData } from './common/response';
 import { buildContainer, type Container } from './container';
+import {
+  API_KEYS_PATH,
+  apiKeysAdminRoutes,
+  CLIENT_KEY_PATH,
+  clientKeyRoutes,
+} from './modules/api-keys/api-keys.routes';
 import { TIERS_PATH, tiersRoutes } from './modules/tiers/tiers.routes';
 
 export function createApp(container: Container = buildContainer()): Express {
-  const { controllers: c, adminAuth } = container;
+  const { controllers: c, adminAuth, clientChain } = container;
   const app = express();
   app.disable('x-powered-by');
   app.use(pinoHttp({ logger }));
@@ -20,7 +26,12 @@ export function createApp(container: Container = buildContainer()): Express {
 
   app.get('/health', (_req, res) => sendData(res, { status: 'ok' }));
 
+  // Admin
   app.use(TIERS_PATH, tiersRoutes(c.tiers, adminAuth, registry));
+  app.use(API_KEYS_PATH, apiKeysAdminRoutes(c.apiKeys, adminAuth, registry));
+
+  // Client (API key, rate limited)
+  app.use(CLIENT_KEY_PATH, clientKeyRoutes(c.apiKeys, clientChain, registry));
 
   // Built after all routes have registered.
   const openApiDocument = buildOpenApiDocument(registry);

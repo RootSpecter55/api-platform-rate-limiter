@@ -1,0 +1,67 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A rate-limit tier. Token bucket: `burst` is the bucket size, `requestsPerMinute` the refill rate.
+model Tier {
+  id                String   @id @default(uuid()) @db.Uuid
+  code              String   @unique
+  name              String
+  burst             Int
+  requestsPerMinute Int      @map("requests_per_minute")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  apiKeys           ApiKey[]
+
+  @@map("tiers")
+}
+
+/// Only a SHA-256 hash of the key is stored. `prefix` is shown in listings to tell keys apart.
+model ApiKey {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  prefix    String
+  keyHash   String       @unique @map("key_hash")
+  tierId    String       @map("tier_id") @db.Uuid
+  revokedAt DateTime?    @map("revoked_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+  tier      Tier         @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  links     Link[]
+  usage     UsageDaily[]
+
+  @@map("api_keys")
+}
+
+model Link {
+  id        String    @id @default(uuid()) @db.Uuid
+  apiKeyId  String    @map("api_key_id") @db.Uuid
+  code      String    @unique
+  targetUrl String    @map("target_url")
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  apiKey    ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([apiKeyId, createdAt])
+  @@map("links")
+}
+
+/// One row per key per UTC day. Incremented with INSERT ... ON CONFLICT DO UPDATE.
+model UsageDaily {
+  id        String   @id @default(uuid()) @db.Uuid
+  apiKeyId  String   @map("api_key_id") @db.Uuid
+  day       DateTime @db.Date
+  requests  Int      @default(0)
+  throttled Int      @default(0)
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@unique([apiKeyId, day])
+  @@map("usage_daily")
+}
